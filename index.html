@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mr. Tidy Laundry Hub</title>
+    <title>Mr. Tidy Laundry Services - Synced</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { background-color: #f8fafc; color: #1e293b; font-family: 'Inter', sans-serif; }
         .card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -32,7 +33,6 @@
     </style>
 </head>
 <body class="p-6">
-
     <nav class="flex items-center justify-between mb-8 border-b border-gray-200 overflow-x-auto pb-2">
         <div class="flex items-center gap-6">
             <div>
@@ -47,6 +47,7 @@
                 <button onclick="showTab('expenses')" class="nav-btn" id="btn-expenses">Expenses</button>
                 <button onclick="showTab('rewards')" class="nav-btn" id="btn-rewards">Rewards</button>
                 <button onclick="showTab('reports')" class="nav-btn" id="btn-reports">Reports</button>
+                <button onclick="syncData()" class="bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs font-bold border border-blue-200">🔄 Sync Now</button>
             </div>
         </div>
         <div id="real-time-clock" class="shadow-sm"></div>
@@ -55,56 +56,32 @@
     <div id="dashboard" class="tab-content active">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div class="card p-5 border-t-4 border-t-green-500">
-                <div class="flex items-center gap-2 mb-1"><span></span><p class="text-slate-500 text-xs uppercase font-bold">Today's Revenue</p></div>
+                <p class="text-slate-500 text-xs uppercase font-bold">Today's Revenue</p>
                 <h2 id="today-rev-dash" class="text-slate-900 text-2xl font-black">₱0.00</h2>
-                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">Total revenue from all sales today</p>
             </div>
             <div class="card p-5 border-t-4 border-t-blue-500">
-                <div class="flex items-center gap-2 mb-1"><span></span><p class="text-slate-500 text-xs uppercase font-bold">Monthly Net Income</p></div>
+                <p class="text-slate-500 text-xs uppercase font-bold">Monthly Net Income</p>
                 <h2 id="net-income-dash" class="text-slate-900 text-2xl font-black">₱0.00</h2>
-                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">This month's revenue minus expenses</p>
             </div>
             <div class="card p-5 border-t-4 border-t-yellow-500">
-                <div class="flex items-center gap-2 mb-1"><span></span><p class="text-slate-500 text-xs uppercase font-bold">Orders In Progress</p></div>
+                <p class="text-slate-500 text-xs uppercase font-bold">In Progress</p>
                 <h2 id="progress-count" class="text-slate-900 text-2xl font-black">0</h2>
-                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">Number of active orders being processed</p>
             </div>
             <div class="card p-5 border-t-4 border-t-indigo-400">
-                <div class="flex items-center gap-2 mb-1"><span></span><p class="text-slate-500 text-xs uppercase font-bold">For Pick-up/Delivery</p></div>
+                <p class="text-slate-500 text-xs uppercase font-bold">Ready</p>
                 <h2 id="ready-count" class="text-slate-900 text-2xl font-black">0</h2>
-                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">Orders ready for customer collection</p>
             </div>
         </div>
-       
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div class="card p-6 lg:col-span-2">
-                <div class="flex justify-between items-center mb-4">
-                    <div class="flex flex-col">
-                        <h3 class="font-bold text-sm uppercase text-slate-700">Order Overview</h3>
-                        <p class="text-[10px] text-slate-400">A summary of your order volume over time</p>
-                        <div class="flex gap-2 mt-2">
-                            <div id="month-total-display" class="month-sum-badge w-fit">Total Month Loads: 0</div>
-                            <div id="accum-total-display" class="accum-sum-badge w-fit">All-Time Loads: 0</div>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <select id="chart-month" onchange="updateChartData()" class="text-[10px] py-1 px-2 w-24"></select>
-                        <select id="chart-year" onchange="updateChartData()" class="text-[10px] py-1 px-2 w-20"></select>
-                    </div>
-                </div>
                 <canvas id="orderChart" height="180"></canvas>
             </div>
             <div class="card p-6">
                 <h3 class="font-bold text-sm uppercase text-slate-700">Today's Payments</h3>
-                <p class="text-[10px] text-slate-400 italic mb-4 font-medium border-b pb-2">A list of all payments received today</p>
                 <div class="overflow-y-auto max-h-[300px]"><table class="w-full text-left text-xs"><tbody id="daily-pay-list"></tbody></table></div>
             </div>
             <div class="card p-6 border-l-4 border-l-red-500">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-bold text-sm uppercase text-red-600">Unpaid Balance</h3>
-                    <span id="unpaid-sum" class="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded">₱0.00</span>
-                </div>
-                <p class="text-[10px] text-slate-400 mb-4 uppercase font-bold">Total Collectibles</p>
+                <h3 class="font-bold text-sm uppercase text-red-600">Unpaid Balance</h3>
                 <div class="overflow-y-auto max-h-[250px]"><table class="w-full text-left text-xs"><tbody id="unpaid-list"></tbody></table></div>
             </div>
         </div>
@@ -112,7 +89,7 @@
 
     <div id="orders" class="tab-content">
         <div class="max-w-4xl mx-auto card p-8 shadow-sm">
-            <h2 class="text-xl font-bold mb-6 pb-4 border-b text-slate-800 flex items-center gap-2"><span></span> New Order <span id="live-total" class="ml-auto text-green-600">₱0.00</span></h2>
+            <h2 class="text-xl font-bold mb-6 pb-4 border-b text-slate-800 flex items-center gap-2"> New Order <span id="live-total" class="ml-auto text-green-600">₱0.00</span></h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <input type="text" id="order-name" placeholder="Customer Name">
                 <input type="text" id="order-contact" placeholder="Mobile Number">
@@ -121,186 +98,104 @@
             <div id="services-container" class="space-y-3 mb-4">
                 <div class="service-row grid grid-cols-12 gap-2 items-end">
                     <div class="col-span-4">
-                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Category</label>
                         <select class="service-select font-medium text-slate-700">
-                            <option value="Light Clothes (8kg max)">Light Clothes (8kg max)</option>
-                            <option value="Mixed Clothes (7kg max)">Mixed Clothes (7kg max)</option>
-                            <option value="Table Cloth/Seat Covers (6kg max)">Table Cloth/Seat Covers (6kg max)</option>
-                            <option value="Bedsheet/Blanket/Towel (6kg max)">Bedsheet/Blanket/Towel (6kg max)</option>
+                            <option>Light Clothes (8kg max)</option>
+                            <option>Mixed Clothes (7kg max)</option>
                         </select>
                     </div>
-                    <div class="col-span-3">
-                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Clothes Count</label>
-                        <input type="number" class="clothes-input font-bold" value="0" min="0">
-                    </div>
-                    <div class="col-span-2">
-                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Price (₱)</label>
-                        <input type="number" class="price-input font-bold" value="175" oninput="calculateTotal()">
-                    </div>
-                    <div class="col-span-2">
-                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Loads</label>
-                        <input type="number" class="load-input font-bold" value="1" min="1" oninput="calculateTotal()">
-                    </div>
+                    <div class="col-span-3"><input type="number" class="clothes-input font-bold" value="0"></div>
+                    <div class="col-span-2"><input type="number" class="price-input font-bold" value="175" oninput="calculateTotal()"></div>
+                    <div class="col-span-2"><input type="number" class="load-input font-bold" value="1" oninput="calculateTotal()"></div>
                 </div>
             </div>
-            <button onclick="addServiceRow()" class="text-blue-600 text-xs font-bold mb-6 hover:underline flex items-center gap-1"><span>+</span> Add More Category</button>
+            <button onclick="addServiceRow()" class="text-blue-600 text-xs font-bold mb-6">+ Add Category</button>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 pt-4 border-t">
-                <select id="order-pay-method" class="font-semibold"><option value="Cash">Cash Basis</option><option value="GCash">GCash</option><option value="Maya">Maya</option></select>
-                <select id="order-pay-timing" class="font-semibold"><option value="now">Pay Now</option><option value="later">Pay Later</option></select>
+                <select id="order-pay-method"><option value="Cash">Cash</option><option value="GCash">GCash</option></select>
+                <select id="order-pay-timing"><option value="now">Pay Now</option><option value="later">Pay Later</option></select>
             </div>
-            <button onclick="processOrder()" class="w-full bg-blue-600 text-white font-black py-4 rounded-lg shadow-md hover:bg-blue-700 transition">COMPLETE TRANSACTION</button>
+            <button onclick="processOrder()" id="complete-btn" class="w-full bg-blue-600 text-white font-black py-4 rounded-lg shadow-md hover:bg-blue-700">COMPLETE & SYNC</button>
         </div>
     </div>
 
     <div id="transactions" class="tab-content">
-        <div class="card p-6 mb-8">
-            <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
-                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><span></span> History Tracker</h2>
-                <div class="flex gap-2">
-                    <input type="text" id="trans-search" placeholder="Search ID, Name, or No..." onkeyup="renderTransactions()" class="text-xs w-48">
-                    <input type="date" id="filter-date" onchange="renderTransactions()" class="text-xs">
-                    <select id="filter-month" onchange="renderTransactions()" class="text-xs"><option value="">All Months</option><option>January</option><option>February</option><option>March</option><option>April</option><option>May</option><option>June</option><option>July</option><option>August</option><option>September</option><option>October</option><option>November</option><option>December</option></select>
-                </div>
-            </div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr class="text-slate-400 border-b"><th class="pb-3 px-2 font-bold">Timeline</th><th class="pb-3 px-2 font-bold">Customer Info</th><th class="pb-3 px-2 font-bold">Payment Status</th><th class="pb-3 px-2 text-center font-bold">Lifecycle</th><th class="pb-3 px-2 text-right font-bold">Total</th><th class="pb-3 px-2 text-right">Actions</th></tr></thead><tbody id="transaction-list"></tbody></table></div>
-        </div>
-
-        <div class="card p-6 border-t-4 border-t-slate-400">
-            <h2 class="text-lg font-bold text-slate-500 mb-2 flex items-center gap-2"><span></span> Void Transactions Log</h2>
-            <p class="text-[10px] text-slate-400 mb-4 font-medium italic">Record of the last 10 strictly deleted orders</p>
-            <div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead><tr class="text-slate-400 border-b"><th class="pb-2 font-bold">Order ID</th><th class="pb-2 font-bold">Customer</th><th class="pb-2 font-bold">Amount</th><th class="pb-2 font-bold text-right">Voided On</th></tr></thead><tbody id="void-list"></tbody></table></div>
-        </div>
-    </div>
-
-    <div id="inventory" class="tab-content">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="card p-6 h-fit border-t-4 border-t-blue-400">
-                <h2 class="text-xl font-bold mb-1 text-slate-800 flex items-center gap-2"><span></span> Add Item</h2>
-                <p class="text-[10px] text-slate-400 italic mb-4 font-medium">Add supplies and track efficiency per load</p>
-                <input type="text" id="inv-name" placeholder="Item Name (e.g. Liquid Soap)" class="mb-2">
-                <input type="number" id="inv-stock" placeholder="Initial Stock Quantity" class="mb-4">
-                <button onclick="addInventoryItem()" class="w-full bg-blue-600 text-white font-bold py-2 rounded shadow-sm hover:bg-blue-700 transition">Register Item</button>
-            </div>
-            <div class="md:col-span-2 card p-6">
-                <h2 class="text-xl font-bold mb-4 text-slate-800">Supply Stock Tracker</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead>
-                            <tr class="text-slate-400 border-b">
-                                <th class="pb-3 px-2 font-bold">Item & Usage Info</th>
-                                <th class="pb-3 px-2 font-bold text-center">Current Stock</th>
-                                <th class="pb-3 px-2 font-bold text-right">Update Stock</th>
-                                <th class="pb-3 px-2 text-right font-bold">Manage</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventory-list"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="expenses" class="tab-content">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="card p-6 h-fit border-t-4 border-t-red-400">
-                <h2 class="text-xl font-bold mb-1 text-slate-800 flex items-center gap-2"><span></span> Add Expense</h2>
-                <p class="text-[10px] text-slate-400 italic mb-4 font-medium">Record business expenses to calculate Net Income</p>
-                <input type="text" id="exp-name" placeholder="Expense Name" class="mb-2">
-                <input type="number" id="exp-amount" placeholder="Amount (₱)" class="mb-2">
-                <select id="exp-category" class="mb-4 font-medium"><option>Rent</option><option>Utilities</option><option>Supplies</option><option>Maintenance</option></select>
-                <button onclick="addExpense()" class="w-full bg-slate-800 text-white font-bold py-2 rounded shadow-sm hover:bg-slate-700 transition">Record Expense</button>
-            </div>
-            <div class="md:col-span-2 card p-6"><div id="expense-history-container" class="space-y-4"></div></div>
-        </div>
-    </div>
-
-    <div id="rewards" class="tab-content">
         <div class="card p-6">
-            <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
-                <div>
-                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><span></span> Loyalty Program</h2>
-                    <p class="text-[10px] text-slate-400 italic font-medium">Track customer progress towards earning rewards</p>
-                </div>
-                <div class="w-full md:w-1/3"><input type="text" id="reward-search" placeholder="Search customer..." onkeyup="renderRewards()" class="text-xs"></div>
-            </div>
-            <table class="w-full text-left text-sm"><thead><tr class="text-slate-400 border-b"><th>Customer Details</th><th class="text-center">Loads</th><th class="px-4">Progress</th><th class="text-center">Action</th><th class="text-right">Claims History</th><th class="pb-3 px-2 text-right">Manage</th></tr></thead><tbody id="reward-list"></tbody></table>
-        </div>
-    </div>
-
-    <div id="reports" class="tab-content">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="card p-6 border-l-4 border-l-orange-400">
-                <div class="flex items-center gap-2 mb-1"><span></span><h3 class="text-slate-500 text-xs uppercase font-bold">Yesterday's Revenue</h3></div>
-                <h2 id="yesterday-rev" class="text-slate-900 text-3xl font-black">₱0.00</h2>
-                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">Total revenue from yesterday</p>
-            </div>
-            <div class="card p-6 border-l-4 border-l-emerald-400">
-                <div class="flex items-center gap-2 mb-1"><span></span><h3 class="text-slate-500 text-xs uppercase font-bold">Avg. Daily Sales</h3></div>
-                <h2 id="avg-daily-sales" class="text-slate-900 text-3xl font-black">₱0.00</h2>
-                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">Average revenue per day this month</p>
-            </div>
-            <div class="card p-6 border-l-4 border-l-purple-400">
-                <div class="flex items-center gap-2 mb-1"><span></span><h3 class="text-slate-500 text-xs uppercase font-bold">Growth Rate</h3></div>
-                <h2 id="growth-rate" class="text-slate-900 text-3xl font-black">0%</h2>
-                <p id="growth-desc" class="text-[10px] text-slate-400 italic mt-1 font-bold">Business growth vs. last month</p>
-            </div>
-        </div>
-        <div class="card p-8">
-            <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><span></span> Historical Sales Search</h3>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 items-end text-sm">
-                <div><label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Specific Date</label><input type="date" id="report-date" class="mt-1"></div>
-                <div><label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Month</label><select id="report-month" class="mt-1"><option value="">Whole Year</option></select></div>
-                <div><label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Year</label><select id="report-year" class="mt-1"></select></div>
-                <button onclick="generateReport()" class="bg-blue-600 text-white font-bold py-2.5 rounded hover:bg-blue-700 transition shadow-md uppercase">View Sales Report</button>
-            </div>
-            <div id="report-result" class="p-6 bg-blue-50 rounded-xl border border-dashed border-blue-200 hidden">
-                <div class="flex justify-between items-center"><span id="report-label" class="text-blue-800 font-bold uppercase tracking-wider">Total Sales</span><span id="report-value" class="text-blue-700 text-3xl font-black">₱0.00</span></div>
-            </div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr class="text-slate-400 border-b"><th>Timeline</th><th>Customer</th><th>Status</th><th>Total</th><th>Actions</th></tr></thead><tbody id="transaction-list"></tbody></table></div>
         </div>
     </div>
 
     <script>
-        let appData = JSON.parse(localStorage.getItem('bubbleDashData')) || {
-            monthlyRevenue: 0, activeCount: 0, readyCount: 0,
-            expenses: [], transactions: [], voidHistory: [], customers: {},
+        // --- SUPABASE CONFIG ---
+        const _URL = "https://vfnuoktlqaahlmepiv.supabase.co";
+        const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbnVva3RscXlxYWFobG1lcGl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyNjIxMDMsImV4cCI6MjA4MzgzODEwM30.ntcZPi9zNX7pciTB4I9XSDN2k13xUZmGCNaQULbftVA"; 
+        const supabase = supabase.createClient(_URL, _KEY);
+
+        let appData = {
+            transactions: [],
+            customers: {},
+            expenses: [],
             inventory: [],
             lastOrderId: 1000
         };
 
-        function startupReset() {
-            appData.activeCount = appData.transactions.filter(t => t.status === 'progress').length;
-            appData.readyCount = appData.transactions.filter(t => t.status === 'ready').length;
-            appData.voidHistory = appData.voidHistory || [];
-            appData.inventory = appData.inventory || [];
-            appData.monthlyRevenue = appData.transactions.filter(t => t.timing === 'now').reduce((acc, t) => acc + t.amt, 0);
-            localStorage.setItem('bubbleDashData', JSON.stringify(appData));
-        }
-        startupReset();
-
-        let myChart;
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-        function updateClock() {
+        // --- CORE SYNC ENGINE ---
+        async function syncData() {
+            const btn = document.getElementById('complete-btn');
+            if(btn) btn.innerText = "Syncing...";
+            
+            // Pull data from Supabase
+            const { data, error } = await supabase
+                .from('sales')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("Sync Error:", error);
+            } else {
+                appData.transactions = data || [];
+                refreshAllUI();
+            }
+            if(btn) btn.innerText = "COMPLETE & SYNC";
+        }
+
+        async function processOrder() {
+            const name = document.getElementById('order-name').value;
+            const contact = document.getElementById('order-contact').value;
+            const calc = calculateTotal();
+            if(!name || !contact) return alert("Fill Name and Number");
+
             const now = new Date();
-            const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            document.getElementById('real-time-clock').innerHTML = ` ${dateStr} |  ${timeStr}`;
-        }
-        setInterval(updateClock, 1000); updateClock();
+            let svcs = [];
+            document.querySelectorAll('.service-row').forEach(r => {
+                svcs.push(`${r.querySelector('.load-input').value}x ${r.querySelector('.service-select').value}`);
+            });
 
-        function refreshAllUI() {
-            localStorage.setItem('bubbleDashData', JSON.stringify(appData));
-            updateDashboardUI(); renderTransactions(); renderExpenses(); renderRewards(); updateReportTab(); renderInventory();
+            const newSale = {
+                customer_name: name,
+                contact: contact,
+                service: svcs.join(", "),
+                total_price: calc.grandTotal,
+                status: 'progress',
+                timing: document.getElementById('order-pay-timing').value,
+                method: document.getElementById('order-pay-method').value,
+                weight: calc.totalLoads // using weight column for loads
+            };
+
+            // PUSH TO SUPABASE
+            const { error } = await supabase.from('sales').insert([newSale]);
+
+            if (error) {
+                alert("Error saving to cloud: " + error.message);
+            } else {
+                alert("Order Saved & Synced!");
+                resetOrderForm();
+                await syncData(); // Refresh list
+                showTab('transactions');
+            }
         }
 
-        function showTab(t) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(t).classList.add('active');
-            document.getElementById('btn-'+t).classList.add('active');
-            refreshAllUI();
-        }
-
+        // --- UI HELPERS ---
         function calculateTotal() {
             let grandTotal = 0; let totalLoads = 0;
             document.querySelectorAll('.service-row').forEach(row => {
@@ -312,308 +207,65 @@
             return { grandTotal, totalLoads };
         }
 
-        function resetOrderForm() {
-            document.getElementById('order-name').value = ''; document.getElementById('order-contact').value = ''; document.getElementById('order-address').value = '';
-            document.getElementById('services-container').innerHTML = `
-                <div class="service-row grid grid-cols-12 gap-2 items-end">
-                    <div class="col-span-4">
-                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Category</label>
-                        <select class="service-select font-medium text-slate-700">
-                            <option value="Light Clothes (8kg max)">Light Clothes (8kg max)</option>
-                            <option value="Mixed Clothes (7kg max)">Mixed Clothes (7kg max)</option>
-                            <option value="Table Cloth/Seat Covers (6kg max)">Table Cloth/Seat Covers (6kg max)</option>
-                            <option value="Bedsheet/Blanket/Towel (6kg max)">Bedsheet/Blanket/Towel (6kg max)</option>
-                        </select>
-                    </div>
-                    <div class="col-span-3">
-                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Clothes Count</label>
-                        <input type="number" class="clothes-input font-bold" value="0" min="0">
-                    </div>
-                    <div class="col-span-2">
-                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Price (₱)</label>
-                        <input type="number" class="price-input font-bold" value="175" oninput="calculateTotal()">
-                    </div>
-                    <div class="col-span-2">
-                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Loads</label>
-                        <input type="number" class="load-input font-bold" value="1" min="1" oninput="calculateTotal()">
-                    </div>
-                </div>`;
-            calculateTotal();
-        }
-
-        function processOrder() {
-            const name = document.getElementById('order-name').value;
-            const contact = document.getElementById('order-contact').value;
-            const calc = calculateTotal();
-            if(!name || !contact) return alert("Fill Name and Number");
-            appData.lastOrderId++;
-            const orderId = `MT-${appData.lastOrderId}`;
-            const now = new Date();
-            const timeStr = `${now.toLocaleDateString()} | ${now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
-            let svcs = [];
-            document.querySelectorAll('.service-row').forEach(r => {
-                const sName = r.querySelector('.service-select').value;
-                const sPrice = r.querySelector('.price-input').value;
-                const sLoads = r.querySelector('.load-input').value;
-                const sCount = r.querySelector('.clothes-input').value;
-                svcs.push(`${sLoads}x ${sName} (${sCount} items) @₱${sPrice}`);
-            });
-            if(!appData.customers[contact]) appData.customers[contact] = { name, loads: 0, claims: 0, claimHistory: [] };
-            const timing = document.getElementById('order-pay-timing').value;
-            const amt = calc.grandTotal;
-            if(timing === 'now') { appData.monthlyRevenue += amt; appData.customers[contact].loads += calc.totalLoads; }
-            appData.activeCount++;
-            appData.transactions.unshift({
-                id: Date.now(), orderId: orderId, name, contact, address: document.getElementById('order-address').value,
-                amt, loads: calc.totalLoads, method: document.getElementById('order-pay-method').value, timing,
-                status: 'progress', services: svcs, time: timeStr,
-                rawDay: now.getDate(), rawDate: now.toISOString().split('T')[0],
-                rawMonth: monthNames[now.getMonth()], rawYear: now.getFullYear(),
-                payTime: timing === 'now' ? timeStr : null
-            });
-            refreshAllUI(); showTab('transactions'); resetOrderForm();
-        }
-
-        function editTransaction(id) {
-            const index = appData.transactions.findIndex(t => t.id === id);
-            if(index === -1) return;
-            const t = appData.transactions[index];
-            document.getElementById('order-name').value = t.name; document.getElementById('order-contact').value = t.contact; document.getElementById('order-address').value = t.address || '';
-            const container = document.getElementById('services-container'); container.innerHTML = '';
-            t.services.forEach(s => {
-                const match = s.match(/(\d+)x (.*?) \((\d+) items\) @₱(\d+)/);
-                const loadVal = match ? match[1] : 1;
-                const serviceName = match ? match[2] : "";
-                const clothesVal = match ? match[3] : 0;
-                const priceVal = match ? match[4] : 175;
-                const div = document.createElement('div'); div.className = "service-row grid grid-cols-12 gap-2 items-end pt-2";
-                div.innerHTML = `<div class="col-span-4"><select class="service-select font-medium text-slate-700"><option value="Light Clothes (8kg max)" ${serviceName === "Light Clothes (8kg max)" ? 'selected':''}>Light Clothes (8kg max)</option><option value="Mixed Clothes (7kg max)" ${serviceName === "Mixed Clothes (7kg max)" ? 'selected':''}>Mixed Clothes (7kg max)</option><option value="Table Cloth/Seat Covers (6kg max)" ${serviceName === "Table Cloth/Seat Covers (6kg max)" ? 'selected':''}>Table Cloth/Seat Covers (6kg max)</option><option value="Bedsheet/Blanket/Towel (6kg max)" ${serviceName === "Bedsheet/Blanket/Towel (6kg max)" ? 'selected':''}>Bedsheet/Blanket/Towel (6kg max)</option></select></div><div class="col-span-3"><input type="number" class="clothes-input font-bold" value="${clothesVal}"></div><div class="col-span-2"><input type="number" class="price-input font-bold" value="${priceVal}" oninput="calculateTotal()"></div><div class="col-span-2"><input type="number" class="load-input font-bold" value="${loadVal}" min="1" oninput="calculateTotal()"></div><div class="col-span-1 text-center"><button onclick="this.parentElement.parentElement.remove(); calculateTotal()" class="text-red-400 font-bold text-lg">×</button></div>`;
-                container.appendChild(div);
-            });
-            calculateTotal();
-            if(t.timing === 'now') { appData.monthlyRevenue -= t.amt; if(appData.customers[t.contact]) { appData.customers[t.contact].loads = Math.max(0, appData.customers[t.contact].loads - t.loads); }}
-            if(t.status === 'progress') appData.activeCount--; if(t.status === 'ready') appData.readyCount--;
-            appData.transactions.splice(index, 1); refreshAllUI(); showTab('orders');
-        }
-
-        function deleteTransaction(id) {
-            if(!confirm("Void order? Stats will strictly reverse.")) return;
-            const index = appData.transactions.findIndex(t => t.id === id);
-            if(index === -1) return;
-            const t = appData.transactions[index];
-            let voidAmtStr = t.timing === 'now' ? `₱${t.amt.toLocaleString()}` : `₱0.00 (Unpaid)`;
-            if(t.timing === 'now') { appData.monthlyRevenue -= t.amt; if(appData.customers[t.contact]) { appData.customers[t.contact].loads = Math.max(0, appData.customers[t.contact].loads - t.loads); }}
-            if(t.status === 'progress') appData.activeCount--; if(t.status === 'ready') appData.readyCount--;
-            appData.voidHistory.unshift({ orderId: t.orderId, name: t.name, displayAmt: voidAmtStr, voidTime: new Date().toLocaleString() });
-            if(appData.voidHistory.length > 10) appData.voidHistory.pop();
-            appData.transactions.splice(index, 1); refreshAllUI();
-        }
-
-        function collectPayment(id) {
-            const m = prompt("Method (Cash, GCash, Maya):", "Cash"); if(!m) return;
-            const t = appData.transactions.find(x => x.id === id);
-            const timeStr = `${new Date().toLocaleDateString()} | ${new Date().toLocaleTimeString()}`;
-            t.timing = 'now'; t.method = m; t.payTime = timeStr;
-            appData.monthlyRevenue += t.amt; if(appData.customers[t.contact]) appData.customers[t.contact].loads += t.loads;
-            refreshAllUI();
-        }
-
-        function updateWorkflow(id, target) {
-            const t = appData.transactions.find(x => x.id === id); const timeStr = `${new Date().toLocaleDateString()} | ${new Date().toLocaleTimeString()}`;
-            if(target === 'ready') { t.status = 'ready'; t.readyTime = timeStr; appData.activeCount--; appData.readyCount++; }
-            else { t.status = 'claimed'; t.claimedTime = timeStr; appData.readyCount--; }
-            refreshAllUI();
-        }
-
-        function addExpense() {
-            const a = parseFloat(document.getElementById('exp-amount').value); const n = document.getElementById('exp-name').value;
-            if(!n || isNaN(a)) return;
-            appData.expenses.push({ id: Date.now(), name: n, amount: a, category: document.getElementById('exp-category').value, month: monthNames[new Date().getMonth()] + " " + new Date().getFullYear() });
-            document.getElementById('exp-name').value = ''; document.getElementById('exp-amount').value = ''; refreshAllUI();
-        }
-
-        function addInventoryItem() {
-            const name = document.getElementById('inv-name').value; const stock = parseInt(document.getElementById('inv-stock').value);
-            if(!name || isNaN(stock)) return alert("Enter item name and stock");
-            const currentTotalLoads = appData.transactions.reduce((acc, t) => acc + (t.loads || 0), 0);
-            appData.inventory.push({ id: Date.now(), name, stock, startLoad: currentTotalLoads });
-            document.getElementById('inv-name').value = ''; document.getElementById('inv-stock').value = ''; refreshAllUI();
-        }
-
-        function updateStock(id, amount) {
-            const item = appData.inventory.find(i => i.id === id);
-            item.stock = Math.max(0, item.stock + amount);
-            refreshAllUI();
-        }
-
-        function deleteInventoryItem(id) {
-            if(!confirm("Delete this item?")) return;
-            appData.inventory = appData.inventory.filter(i => i.id !== id); refreshAllUI();
-        }
-
-        function renderInventory() {
-            const currentTotalLoads = appData.transactions.reduce((acc, t) => acc + (t.loads || 0), 0);
-            const list = document.getElementById('inventory-list');
-            list.innerHTML = (appData.inventory || []).map(item => {
-                const loadsServed = currentTotalLoads - item.startLoad;
-                return `
-                <tr class="border-b border-slate-50 hover:bg-slate-50 transition">
-                    <td class="py-4 px-2">
-                        <strong class="text-slate-700 block">${item.name}</strong>
-                        <span class="text-[10px] text-slate-400 font-bold uppercase">
-                            Loads Served: <span class="text-blue-600">${loadsServed}</span>
-                        </span>
-                    </td>
-                    <td class="py-4 px-2 text-center">
-                        <span class="px-3 py-1 rounded-full font-black ${item.stock < 5 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}">${item.stock}</span>
-                        ${item.stock < 5 ? '<br><small class="text-red-500 font-bold uppercase text-[9px]">Low Stock!</small>' : ''}
-                    </td>
-                    <td class="py-4 px-2 text-right">
-                        <div class="flex justify-end gap-1">
-                            <button onclick="updateStock(${item.id}, -1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 rounded">-</button>
-                            <button onclick="updateStock(${item.id}, 1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 rounded">+</button>
-                        </div>
-                    </td>
-                    <td class="py-4 px-2 text-right"><button onclick="deleteInventoryItem(${item.id})" class="text-red-400 font-bold hover:text-red-600 transition">Delete</button></td>
-                </tr>`}).join('');
+        function refreshAllUI() {
+            updateDashboardUI();
+            renderTransactions();
         }
 
         function updateDashboardUI() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const todayTotal = appData.transactions.filter(t => t.rawDate === todayStr && t.timing === 'now').reduce((acc, t) => acc + t.amt, 0);
-            const totalExp = appData.expenses.reduce((s, e) => s + e.amount, 0);
-            const unpaidTotal = appData.transactions.filter(t => t.timing === 'later').reduce((s,t) => s + t.amt, 0);
-            const accumulatedLoads = appData.transactions.reduce((acc, t) => acc + (t.loads || 0), 0);
-            document.getElementById('accum-total-display').innerText = `All-Time Loads: ${accumulatedLoads}`;
-            document.getElementById('today-rev-dash').innerText = `₱${todayTotal.toLocaleString()}`;
-            document.getElementById('net-income-dash').innerText = `₱${(appData.monthlyRevenue - totalExp).toLocaleString()}`;
-            document.getElementById('progress-count').innerText = appData.activeCount;
-            document.getElementById('ready-count').innerText = appData.readyCount;
-            document.getElementById('unpaid-sum').innerText = `₱${unpaidTotal.toLocaleString()}`;
-            document.getElementById('daily-pay-list').innerHTML = appData.transactions.filter(t => t.rawDate === todayStr && t.timing === 'now').map(t => `<tr class="border-b border-slate-100"><td class="py-2 font-bold">${t.name}</td><td>${t.method}</td><td class="text-right text-green-600 font-bold">₱${t.amt.toLocaleString()}</td></tr>`).join('');
-            document.getElementById('unpaid-list').innerHTML = appData.transactions.filter(t => t.timing === 'later').map(t => `<tr class="border-b border-slate-100"><td class="py-3"><strong>${t.name}</strong><br><small>${t.contact}</small></td><td class="text-right text-red-600 font-black">₱${t.amt.toLocaleString()}</td></tr>`).join('');
-            if(myChart) updateChartData();
-        }
+            const active = appData.transactions.filter(t => t.status === 'progress').length;
+            const ready = appData.transactions.filter(t => t.status === 'ready').length;
+            const revenue = appData.transactions.filter(t => t.timing === 'now').reduce((s, t) => s + t.total_price, 0);
 
-        function updateChartData() {
-            const m = document.getElementById('chart-month').value; const y = parseInt(document.getElementById('chart-year').value);
-            const daysInMonth = new Date(y, monthNames.indexOf(m) + 1, 0).getDate();
-            const dailyLoads = new Array(daysInMonth).fill(0);
-            let total = 0;
-            appData.transactions.forEach(t => { if (t.rawYear === y && t.rawMonth === m) { dailyLoads[t.rawDay - 1] += t.loads; total += t.loads; }});
-            document.getElementById('month-total-display').innerText = `Total Month Loads: ${total}`;
-            myChart.data.labels = Array.from({length: daysInMonth}, (_, i) => i + 1);
-            myChart.data.datasets[0].data = dailyLoads; myChart.update();
-        }
-
-        function updateReportTab() {
-            const now = new Date();
-            const yesterdayStr = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split('T')[0];
-            const yesterdayRev = appData.transactions.filter(t => t.rawDate === yesterdayStr && t.timing === 'now').reduce((s,t) => s + t.amt, 0);
-            document.getElementById('yesterday-rev').innerText = `₱${yesterdayRev.toLocaleString()}`;
-            const thisMonth = monthNames[now.getMonth()]; const thisYear = now.getFullYear();
-            const monthTotal = appData.transactions.filter(t => t.rawMonth === thisMonth && t.rawYear === thisYear && t.timing === 'now').reduce((s,t) => s + t.amt, 0);
-            const avg = now.getDate() > 0 ? monthTotal / now.getDate() : 0;
-            document.getElementById('avg-daily-sales').innerText = `₱${avg.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
-            const lastMonthIdx = now.getMonth() === 0 ? 11 : now.getMonth() - 1; const lastYear = now.getMonth() === 0 ? thisYear - 1 : thisYear;
-            const lastMonthTotal = appData.transactions.filter(t => t.rawMonth === monthNames[lastMonthIdx] && t.rawYear === lastYear && t.timing === 'now').reduce((s,t) => s + t.amt, 0);
-            const growth = lastMonthTotal > 0 ? ((monthTotal - lastMonthTotal) / lastMonthTotal) * 100 : (monthTotal > 0 ? 100 : 0);
-            const growthEl = document.getElementById('growth-rate');
-            growthEl.innerText = `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
-            growthEl.className = growth >= 0 ? "text-emerald-500 text-3xl font-black" : "text-red-500 text-3xl font-black";
-        }
-
-        function generateReport() {
-            const date = document.getElementById('report-date').value; const m = document.getElementById('report-month').value; const y = parseInt(document.getElementById('report-year').value);
-            const filtered = appData.transactions.filter(t => { if (t.timing !== 'now') return false; if (date) return t.rawDate === date; return t.rawYear === y && (m === "" || t.rawMonth === m); });
-            const total = filtered.reduce((s,t) => s + t.amt, 0);
-            document.getElementById('report-result').classList.remove('hidden');
-            let label = `Total Sales for Year ${y}`; if (date) label = `Total Sales for ${new Date(date).toLocaleDateString()}`; else if (m) label = `Total Sales for ${m} ${y}`;
-            document.getElementById('report-label').innerText = label; document.getElementById('report-value').innerText = `₱${total.toLocaleString()}`;
+            document.getElementById('progress-count').innerText = active;
+            document.getElementById('ready-count').innerText = ready;
+            document.getElementById('today-rev-dash').innerText = `₱${revenue.toLocaleString()}`;
         }
 
         function renderTransactions() {
-            const q = document.getElementById('trans-search').value.toLowerCase();
-            const fDate = document.getElementById('filter-date').value;
-            const fMonth = document.getElementById('filter-month').value;
             const list = document.getElementById('transaction-list');
-            list.innerHTML = appData.transactions.filter(t => {
-                const sId = t.orderId ? t.orderId.toLowerCase() : "";
-                return (t.name.toLowerCase().includes(q) || t.contact.includes(q) || sId.includes(q)) && (fDate ? t.rawDate === fDate : true) && (fMonth ? t.rawMonth === fMonth : true);
-            }).map(t => `<tr class="border-b border-slate-100 text-xs hover:bg-slate-50 transition"><td class="py-4 px-2 font-bold text-blue-600">${t.time}</td><td class="py-4 px-2"><span class="order-id-pill">${t.orderId}</span><br><strong>${t.name}</strong><br><span class="text-slate-400 font-bold">${t.contact}</span><br><span class="total-badge">Order Load: ${t.loads} Load(s)</span>${t.services.map(s => `<div class="service-item">${s}</div>`).join('')}</td><td class="py-4 px-2 font-bold">${t.timing === 'now' ? `<span class="text-green-600 font-bold uppercase">Paid (${t.method})</span><span class="time-label">${t.payTime || ''}</span>` : `<button onclick="collectPayment(${t.id})" class="status-pill bg-unpaid font-bold">Collect</button>`}</td><td class="py-4 px-2 text-center uppercase font-bold">${t.status === 'progress' ? `<span class="status-pill bg-progress">In Progress</span><button onclick="updateWorkflow(${t.id}, 'ready')" class="block text-blue-600 mt-2 hover:underline font-bold">Mark Ready</button>` : t.status === 'ready' ? `<span class="status-pill bg-ready">Ready</span><span class="time-label">${t.readyTime || ''}</span><button onclick="updateWorkflow(${t.id}, 'claimed')" class="block text-green-600 mt-2 hover:underline font-bold">Mark Claimed</button>` : `<span class="status-pill bg-claimed">Claimed</span><span class="time-label">${t.claimedTime || ''}</span>`}</td><td class="py-4 px-2 text-right font-black text-slate-800 text-sm">₱${t.amt.toLocaleString()}</td><td class="py-4 px-2 text-right"><button onclick="editTransaction(${t.id})" class="text-blue-500 hover:text-blue-700 font-bold mr-3">Edit</button><button onclick="deleteTransaction(${t.id})" class="text-slate-300 hover:text-red-500 transition text-lg font-bold">Void</button></td></tr>`).join('');
-            document.getElementById('void-list').innerHTML = (appData.voidHistory || []).map(v => `<tr class="border-b border-slate-50 text-slate-400"><td>${v.orderId}</td><td>${v.name}</td><td>${v.displayAmt}</td><td class="text-right">${v.voidTime}</td></tr>`).join('');
+            list.innerHTML = appData.transactions.map(t => `
+                <tr class="border-b text-xs">
+                    <td class="p-3">${new Date(t.created_at).toLocaleDateString()}</td>
+                    <td class="p-3"><strong>${t.customer_name}</strong></td>
+                    <td class="p-3"><span class="status-pill ${t.status === 'progress' ? 'bg-progress' : 'bg-ready'}">${t.status}</span></td>
+                    <td class="p-3 font-bold">₱${t.total_price}</td>
+                    <td class="p-3"><button onclick="deleteSale(${t.id})" class="text-red-400">Void</button></td>
+                </tr>
+            `).join('');
         }
 
-        function renderExpenses() {
-            const container = document.getElementById('expense-history-container'); container.innerHTML = '';
-            const groups = appData.expenses.reduce((acc, e) => { (acc[e.month] = acc[e.month] || []).push(e); return acc; }, {});
-            for (const m in groups) {
-                const total = groups[m].reduce((s, e) => s + e.amount, 0);
-                let h = `<div class="card p-4 mb-4"><div class="flex justify-between font-bold text-blue-600 mb-2 border-b pb-2"><span>${m}</span><span class="text-red-600 font-black">₱${total.toLocaleString()}</span></div>`;
-                groups[m].forEach(e => h += `<div class="flex justify-between text-xs py-2 text-slate-600 border-b border-slate-50">${e.name}<span>₱${e.amount.toLocaleString()} <button onclick="deleteExp(${e.id})" class="ml-2 hover:text-red-500 font-bold">×</button></span></div>`);
-                container.innerHTML += h + '</div>';
-            }
-        }
-        function deleteExp(id) { appData.expenses = appData.expenses.filter(x => x.id !== id); refreshAllUI(); }
-
-        function renderRewards() {
-            const q = (document.getElementById('reward-search')?.value || "").toLowerCase();
-            const list = document.getElementById('reward-list'); list.innerHTML = '';
-            for(let contact in appData.customers) {
-                const cust = appData.customers[contact];
-                if(cust.name.toLowerCase().includes(q) || contact.includes(q)) {
-                    let cyc = cust.loads % 15; let p = (cyc / 15) * 100;
-                    let historyHtml = (cust.claimHistory || []).map(h => `<span class="history-tag">Redeemed: ${h}</span>`).join('');
-                    list.innerHTML += `<tr class="border-b border-slate-50"><td class="py-4 px-2"><strong class="text-slate-800">${cust.name}</strong><br><small>${contact}</small></td><td class="text-center font-black text-blue-600 text-lg">${cust.loads}</td><td class="py-4 px-2 px-4"><span>${p.toFixed(0)}%</span><div style="width:100%; background:#f1f5f9; height:8px; border-radius:4px; margin-top:4px;"><div class="progress-bar-fill" style="width:${p}%; border-radius:4px;"></div></div></td><td class="py-4 px-2 text-center">${cust.loads >= 15 ? `<button onclick="claimReward('${contact}')" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm hover:bg-green-700">CLAIM</button>` : `<span class="text-slate-400 text-[10px] font-bold">${(15-cyc)} loads left</span>`}</td><td class="py-4 px-2 text-right font-black text-green-600">${cust.claims} Claims<div class="max-h-20 overflow-y-auto mt-1">${historyHtml}</div></td><td class="py-4 px-2 text-right"><button onclick="deleteCustomer('${contact}')" class="text-red-400 font-bold hover:text-red-600 transition">Delete</button></td></tr>`;
-                }
-            }
-        }
-        function claimReward(contact) { if(confirm(`Process free reward?`)) { const now = new Date().toLocaleString(); appData.customers[contact].loads -= 15; appData.customers[contact].claims++; if(!appData.customers[contact].claimHistory) appData.customers[contact].claimHistory = []; appData.customers[contact].claimHistory.unshift(now); refreshAllUI(); }}
-        function deleteCustomer(contact) { if(!confirm(`Strictly delete profile?`)) return; delete appData.customers[contact]; refreshAllUI(); }
-        
-        function addServiceRow() { 
-            const div = document.createElement('div'); 
-            div.className = "service-row grid grid-cols-12 gap-2 items-end pt-2"; 
-            div.innerHTML = `<div class="col-span-4"><select class="service-select font-medium text-slate-700"><option>Light Clothes (8kg max)</option><option>Mixed Clothes (7kg max)</option><option>Table Cloth/Seat Covers (6kg max)</option><option>Bedsheet/Blanket/Towel (6kg max)</option></select></div><div class="col-span-3"><input type="number" class="clothes-input font-bold" value="0" min="0"></div><div class="col-span-2"><input type="number" class="price-input font-bold" value="175" oninput="calculateTotal()"></div><div class="col-span-2"><input type="number" class="load-input font-bold" value="1" min="1" oninput="calculateTotal()"></div><div class="col-span-1 text-center"><button onclick="this.parentElement.parentElement.remove(); calculateTotal()" class="text-red-400 font-bold text-lg">×</button></div>`; 
-            document.getElementById('services-container').appendChild(div); 
-            calculateTotal(); 
+        async function deleteSale(id) {
+            if(!confirm("Delete this sale?")) return;
+            await supabase.from('sales').delete().eq('id', id);
+            syncData();
         }
 
-        const startX = new Date();
-        const mS = document.getElementById('chart-month'); const yS = document.getElementById('chart-year');
-        const rmS = document.getElementById('report-month'); ryS = document.getElementById('report-year');
-        monthNames.forEach(m => { const opt = `<option ${m === monthNames[startX.getMonth()] ? 'selected' : ''}>${m}</option>`; mS.innerHTML += opt; rmS.innerHTML += `<option value="${m}">${m}</option>`; });
-        for(let y = startX.getFullYear(); y >= startX.getFullYear()-2; y--) { const opt = `<option ${y === startX.getFullYear() ? 'selected' : ''}>${y}</option>`; yS.innerHTML += opt; ryS.innerHTML += opt; }
+        function showTab(t) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(t).classList.add('active');
+            document.getElementById('btn-'+t).classList.add('active');
+        }
 
-        const ctx = document.getElementById('orderChart').getContext('2d');
-        myChart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ label: 'Daily Loads', data: [], borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', fill: true, tension: 0.3, pointRadius: 4 }] }, options: { scales: { y: { beginAtZero:true, grid: { color: '#f1f5f9' } }, x: { grid: { color: '#f1f5f9' } } }, plugins: { legend: { display: false } } } });
+        function addServiceRow() {
+            const div = document.createElement('div');
+            div.className = "service-row grid grid-cols-12 gap-2 items-end pt-2";
+            div.innerHTML = `<div class="col-span-4"><select class="service-select"><option>Light Clothes</option><option>Mixed Clothes</option></select></div><div class="col-span-3"><input type="number" class="clothes-input" value="0"></div><div class="col-span-2"><input type="number" class="price-input" value="175" oninput="calculateTotal()"></div><div class="col-span-2"><input type="number" class="load-input" value="1" oninput="calculateTotal()"></div>`;
+            document.getElementById('services-container').appendChild(div);
+        }
 
-        refreshAllUI();
+        function resetOrderForm() {
+            document.getElementById('order-name').value = '';
+            document.getElementById('order-contact').value = '';
+            calculateTotal();
+        }
+
+        // INITIAL LOAD
+        window.onload = () => {
+            syncData();
+            setInterval(syncData, 30000); // Auto-sync every 30 seconds
+        };
     </script>
 </body>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  const _URL = "https://vfnuoktlqaahlmepiv.supabase.co";
-  const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbnVva3RscWFhaGxtZXBidiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzM2NzUyNDgwLCJleHAiOjIwNTIzMjg0ODB9.your_full_key_here";
-  const supabase = supabase.createClient(_URL, _KEY);
-
-  // This function saves your laundry sale to the cloud
-  async function saveSaleToCloud(customer, service, weight, price) {
-    const { data, error } = await supabase
-      .from('sales')
-      .insert([{ 
-        customer_name: customer, 
-        service: service, 
-        weight: weight, 
-        total_price: price,
-        status: 'Pending' 
-      }]);
-    
-    if (error) {
-      console.error('Error saving:', error);
-      alert('Error saving to cloud');
-    } else {
-      alert('Sale synced to all devices!');
-    }
-  }
-</script></html>
+</html>
