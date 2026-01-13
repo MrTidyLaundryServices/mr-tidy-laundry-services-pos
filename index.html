@@ -591,4 +591,29 @@
         refreshAllUI();
     </script>
 </body>
-</html>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const _URL = "https://vfnuoktlqaahlmepiv.supabase.co";
+  const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbnVva3RscWFhaGxtZXBidiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzM2NzUyNDgwLCJleHAiOjIwNTIzMjg0ODB9.your_full_key_here";
+  const supabase = supabase.createClient(_URL, _KEY);
+
+  // This function saves your laundry sale to the cloud
+  async function saveSaleToCloud(customer, service, weight, price) {
+    const { data, error } = await supabase
+      .from('sales')
+      .insert([{ 
+        customer_name: customer, 
+        service: service, 
+        weight: weight, 
+        total_price: price,
+        status: 'Pending' 
+      }]);
+    
+    if (error) {
+      console.error('Error saving:', error);
+      alert('Error saving to cloud');
+    } else {
+      alert('Sale synced to all devices!');
+    }
+  }
+</script></html>
