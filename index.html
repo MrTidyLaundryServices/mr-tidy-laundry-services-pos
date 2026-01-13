@@ -23,6 +23,11 @@
         .bg-unpaid { background: #fee2e2; color: #991b1b; }
         .time-label { font-size: 10px; color: #64748b; display: block; margin-top: 2px; line-height: 1.2; }
         .service-item { color: #475569; font-size: 11px; line-height: 1.4; margin-top: 4px; border-left: 2px solid #e2e8f0; padding-left: 6px; }
+        .progress-bar-fill { background: #22c55e; height: 100%; transition: width 0.5s ease; }
+        .total-badge { font-size: 10px; background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; border: 1px solid #e2e8f0; }
+        .month-sum-badge { background: #eff6ff; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; color: #1d4ed8; font-weight: bold; }
+        .accum-sum-badge { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; color: #15803d; font-weight: bold; }
+        .history-tag { font-size: 9px; color: #64748b; background: #f8fafc; padding: 1px 4px; border-radius: 3px; display: block; margin-top: 2px; border: 1px solid #e2e8f0; }
         #real-time-clock { color: #1e293b; font-size: 13px; font-weight: 600; background: #ffffff; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
         .order-id-pill { background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 800; font-size: 11px; margin-bottom: 4px; display: inline-block; }
     </style>
@@ -32,14 +37,18 @@
     <nav class="flex items-center justify-between mb-8 border-b border-gray-200 overflow-x-auto pb-2">
         <div class="flex items-center gap-6">
             <div>
-                <h1 class="text-blue-600 text-xl font-bold"> Mr. Tidy Laundry Services</h1>
+                <h1 class="text-blue-600 text-xl font-bold flex align-center gap-2"> Mr. Tidy Laundry Services</h1>
                 <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mt-[-4px]">Wash-Dry-Fold</p>
             </div>
             <div class="flex gap-6 text-sm">
                 <button onclick="showTab('dashboard')" class="nav-btn active" id="btn-dashboard">Dashboard</button>
                 <button onclick="showTab('orders')" class="nav-btn" id="btn-orders">New Order</button>
                 <button onclick="showTab('transactions')" class="nav-btn" id="btn-transactions">Transactions</button>
-                <button onclick="syncData()" class="bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs font-bold border border-blue-200">🔄 Sync</button>
+                <button onclick="showTab('inventory')" class="nav-btn" id="btn-inventory">Inventory</button>
+                <button onclick="showTab('expenses')" class="nav-btn" id="btn-expenses">Expenses</button>
+                <button onclick="showTab('rewards')" class="nav-btn" id="btn-rewards">Rewards</button>
+                <button onclick="showTab('reports')" class="nav-btn" id="btn-reports">Reports</button>
+                <button onclick="syncFromCloud()" class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[10px] font-bold">🔄 SYNC</button>
             </div>
         </div>
         <div id="real-time-clock" class="shadow-sm"></div>
@@ -48,27 +57,64 @@
     <div id="dashboard" class="tab-content active">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div class="card p-5 border-t-4 border-t-green-500">
-                <p class="text-slate-500 text-xs uppercase font-bold">Today's Revenue</p>
+                <div class="flex items-center gap-2 mb-1"><span></span><p class="text-slate-500 text-xs uppercase font-bold">Today's Revenue</p></div>
                 <h2 id="today-rev-dash" class="text-slate-900 text-2xl font-black">₱0.00</h2>
+                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">Total revenue from all sales today</p>
+            </div>
+            <div class="card p-5 border-t-4 border-t-blue-500">
+                <div class="flex items-center gap-2 mb-1"><span></span><p class="text-slate-500 text-xs uppercase font-bold">Monthly Net Income</p></div>
+                <h2 id="net-income-dash" class="text-slate-900 text-2xl font-black">₱0.00</h2>
+                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">This month's revenue minus expenses</p>
             </div>
             <div class="card p-5 border-t-4 border-t-yellow-500">
-                <p class="text-slate-500 text-xs uppercase font-bold">In Progress</p>
+                <div class="flex items-center gap-2 mb-1"><span></span><p class="text-slate-500 text-xs uppercase font-bold">Orders In Progress</p></div>
                 <h2 id="progress-count" class="text-slate-900 text-2xl font-black">0</h2>
+                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">Number of active orders being processed</p>
             </div>
             <div class="card p-5 border-t-4 border-t-indigo-400">
-                <p class="text-slate-500 text-xs uppercase font-bold">Ready</p>
+                <div class="flex items-center gap-2 mb-1"><span></span><p class="text-slate-500 text-xs uppercase font-bold">For Pick-up/Delivery</p></div>
                 <h2 id="ready-count" class="text-slate-900 text-2xl font-black">0</h2>
+                <p class="text-[10px] text-slate-400 italic mt-1 font-bold">Orders ready for customer collection</p>
             </div>
         </div>
-        <div class="card p-6">
-            <h3 class="font-bold text-sm uppercase text-slate-700 mb-4">Unpaid Balance</h3>
-            <div class="overflow-y-auto max-h-[250px]"><table class="w-full text-left text-xs"><tbody id="unpaid-list"></tbody></table></div>
+       
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div class="card p-6 lg:col-span-2">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex flex-col">
+                        <h3 class="font-bold text-sm uppercase text-slate-700">Order Overview</h3>
+                        <p class="text-[10px] text-slate-400">A summary of your order volume over time</p>
+                        <div class="flex gap-2 mt-2">
+                            <div id="month-total-display" class="month-sum-badge w-fit">Total Month Loads: 0</div>
+                            <div id="accum-total-display" class="accum-sum-badge w-fit">All-Time Loads: 0</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="chart-month" onchange="updateChartData()" class="text-[10px] py-1 px-2 w-24"></select>
+                        <select id="chart-year" onchange="updateChartData()" class="text-[10px] py-1 px-2 w-20"></select>
+                    </div>
+                </div>
+                <canvas id="orderChart" height="180"></canvas>
+            </div>
+            <div class="card p-6">
+                <h3 class="font-bold text-sm uppercase text-slate-700">Today's Payments</h3>
+                <p class="text-[10px] text-slate-400 italic mb-4 font-medium border-b pb-2">A list of all payments received today</p>
+                <div class="overflow-y-auto max-h-[300px]"><table class="w-full text-left text-xs"><tbody id="daily-pay-list"></tbody></table></div>
+            </div>
+            <div class="card p-6 border-l-4 border-l-red-500">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-sm uppercase text-red-600">Unpaid Balance</h3>
+                    <span id="unpaid-sum" class="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded">₱0.00</span>
+                </div>
+                <p class="text-[10px] text-slate-400 mb-4 uppercase font-bold">Total Collectibles</p>
+                <div class="overflow-y-auto max-h-[250px]"><table class="w-full text-left text-xs"><tbody id="unpaid-list"></tbody></table></div>
+            </div>
         </div>
     </div>
 
     <div id="orders" class="tab-content">
         <div class="max-w-4xl mx-auto card p-8 shadow-sm">
-            <h2 class="text-xl font-bold mb-6 pb-4 border-b text-slate-800 flex items-center gap-2"> New Order <span id="live-total" class="ml-auto text-green-600">₱0.00</span></h2>
+            <h2 class="text-xl font-bold mb-6 pb-4 border-b text-slate-800 flex items-center gap-2"><span></span> New Order <span id="live-total" class="ml-auto text-green-600">₱0.00</span></h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <input type="text" id="order-name" placeholder="Customer Name">
                 <input type="text" id="order-contact" placeholder="Mobile Number">
@@ -77,50 +123,104 @@
             <div id="services-container" class="space-y-3 mb-4">
                 <div class="service-row grid grid-cols-12 gap-2 items-end">
                     <div class="col-span-4">
+                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Category</label>
                         <select class="service-select font-medium text-slate-700">
-                            <option>Light Clothes (8kg max)</option>
-                            <option>Mixed Clothes (7kg max)</option>
-                            <option>Table Cloth/Seat Covers (6kg max)</option>
-                            <option>Bedsheet/Blanket/Towel (6kg max)</option>
+                            <option value="Light Clothes (8kg max)">Light Clothes (8kg max)</option>
+                            <option value="Mixed Clothes (7kg max)">Mixed Clothes (7kg max)</option>
+                            <option value="Table Cloth/Seat Covers (6kg max)">Table Cloth/Seat Covers (6kg max)</option>
+                            <option value="Bedsheet/Blanket/Towel (6kg max)">Bedsheet/Blanket/Towel (6kg max)</option>
                         </select>
                     </div>
-                    <div class="col-span-3"><input type="number" class="clothes-input font-bold" value="0"></div>
-                    <div class="col-span-2"><input type="number" class="price-input font-bold" value="175" oninput="calculateTotal()"></div>
-                    <div class="col-span-2"><input type="number" class="load-input font-bold" value="1" oninput="calculateTotal()"></div>
+                    <div class="col-span-3">
+                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Clothes Count</label>
+                        <input type="number" class="clothes-input font-bold" value="0" min="0">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Price (₱)</label>
+                        <input type="number" class="price-input font-bold" value="175" oninput="calculateTotal()">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-[9px] uppercase text-slate-400 font-bold ml-1">Loads</label>
+                        <input type="number" class="load-input font-bold" value="1" min="1" oninput="calculateTotal()">
+                    </div>
                 </div>
             </div>
-            <button onclick="addServiceRow()" class="text-blue-600 text-xs font-bold mb-6">+ Add More Category</button>
+            <button onclick="addServiceRow()" class="text-blue-600 text-xs font-bold mb-6 hover:underline flex items-center gap-1"><span>+</span> Add More Category</button>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 pt-4 border-t">
-                <select id="order-pay-method"><option value="Cash">Cash Basis</option><option value="GCash">GCash</option><option value="Maya">Maya</option></select>
-                <select id="order-pay-timing"><option value="now">Pay Now</option><option value="later">Pay Later</option></select>
+                <select id="order-pay-method" class="font-semibold"><option value="Cash">Cash Basis</option><option value="GCash">GCash</option><option value="Maya">Maya</option></select>
+                <select id="order-pay-timing" class="font-semibold"><option value="now">Pay Now</option><option value="later">Pay Later</option></select>
             </div>
-            <button onclick="processOrder()" id="complete-btn" class="w-full bg-blue-600 text-white font-black py-4 rounded-lg shadow-md hover:bg-blue-700 transition uppercase">Complete Transaction</button>
+            <button onclick="processOrder()" class="w-full bg-blue-600 text-white font-black py-4 rounded-lg shadow-md hover:bg-blue-700 transition">COMPLETE TRANSACTION</button>
         </div>
     </div>
 
     <div id="transactions" class="tab-content">
-        <div class="card p-6">
-            <h2 class="text-xl font-bold mb-6">History Tracker</h2>
+        <div class="card p-6 mb-8">
+            <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><span></span> History Tracker</h2>
+                <div class="flex gap-2">
+                    <input type="text" id="trans-search" placeholder="Search ID..." onkeyup="renderTransactions()" class="text-xs w-48">
+                </div>
+            </div>
             <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr class="text-slate-400 border-b"><th>Timeline</th><th>Customer Info</th><th>Payment</th><th>Status</th><th>Total</th><th>Actions</th></tr></thead><tbody id="transaction-list"></tbody></table></div>
         </div>
     </div>
 
+    <div id="inventory" class="tab-content">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="card p-6 h-fit border-t-4 border-t-blue-400">
+                <h2 class="text-xl font-bold mb-1 text-slate-800 flex items-center gap-2"><span></span> Add Item</h2>
+                <input type="text" id="inv-name" placeholder="Item Name" class="mb-2">
+                <input type="number" id="inv-stock" placeholder="Initial Stock" class="mb-4">
+                <button onclick="addInventoryItem()" class="w-full bg-blue-600 text-white font-bold py-2 rounded">Register Item</button>
+            </div>
+            <div class="md:col-span-2 card p-6">
+                <table class="w-full text-left text-sm"><tbody id="inventory-list"></tbody></table>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // --- PUT YOUR SUPABASE KEYS HERE ---
+        // --- SUPABASE CONFIGURATION ---
         const _URL = "https://vfnuoktlqaahlmepiv.supabase.co";
         const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbnVva3RscXlxYWFobG1lcGl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyNjIxMDMsImV4cCI6MjA4MzgzODEwM30.ntcZPi9zNX7pciTB4I9XSDN2k13xUZmGCNaQULbftVA"; 
         const supabase = supabase.createClient(_URL, _KEY);
 
-        let transactions = [];
+        // This replaces your localStorage. It starts with your old data but will merge with the cloud.
+        let appData = JSON.parse(localStorage.getItem('bubbleDashData')) || {
+            monthlyRevenue: 0, activeCount: 0, readyCount: 0,
+            expenses: [], transactions: [], voidHistory: [], customers: {},
+            inventory: [],
+            lastOrderId: 1000
+        };
 
-        async function syncData() {
+        // SYNC ENGINE: Pulls data from Supabase and updates the screen
+        async function syncFromCloud() {
             const { data, error } = await supabase.from('sales').select('*').order('created_at', { ascending: false });
-            if (!error) { transactions = data; renderAll(); }
+            if (!error && data) {
+                // Map database columns to your existing appData format
+                appData.transactions = data.map(row => ({
+                    id: row.id,
+                    orderId: `MT-${row.id}`,
+                    name: row.customer_name,
+                    contact: row.contact || 'N/A',
+                    amt: row.total_price,
+                    status: row.status,
+                    timing: row.timing,
+                    time: new Date(row.created_at).toLocaleString(),
+                    services: [row.service],
+                    rawDate: new Date(row.created_at).toISOString().split('T')[0],
+                    loads: row.weight || 1
+                }));
+                refreshAllUI();
+            }
         }
 
+        // MODIFIED PROCESS ORDER: Now sends to cloud too!
         async function processOrder() {
             const name = document.getElementById('order-name').value;
             const contact = document.getElementById('order-contact').value;
+            const calc = calculateTotal();
             if(!name || !contact) return alert("Fill Name and Number");
 
             let svcs = [];
@@ -128,49 +228,74 @@
                 svcs.push(`${r.querySelector('.load-input').value}x ${r.querySelector('.service-select').value}`);
             });
 
-            const newSale = {
+            const dbEntry = {
                 customer_name: name,
+                contact: contact,
                 service: svcs.join(", "),
-                total_price: calculateTotal().grandTotal,
+                total_price: calc.grandTotal,
                 status: 'progress',
-                timing: document.getElementById('order-pay-timing').value
+                timing: document.getElementById('order-pay-timing').value,
+                weight: calc.totalLoads
             };
 
-            await supabase.from('sales').insert([newSale]);
-            alert("Order Saved!");
-            location.reload(); 
+            // Save to Database
+            const { error } = await supabase.from('sales').insert([dbEntry]);
+            
+            if (error) {
+                alert("Error Syncing: " + error.message);
+            } else {
+                alert("Order Saved & Synced!");
+                syncFromCloud(); // Immediately refresh the list
+                showTab('transactions');
+                resetOrderForm();
+            }
         }
 
+        // [REST OF YOUR ORIGINAL JAVASCRIPT FUNCTIONS: calculateTotal, refreshAllUI, renderTransactions, etc.]
+        // NOTE: Keep your original logic for rendering, just make sure they use 'appData.transactions'
+        
         function calculateTotal() {
-            let grandTotal = 0;
+            let grandTotal = 0; let totalLoads = 0;
             document.querySelectorAll('.service-row').forEach(row => {
-                grandTotal += (parseInt(row.querySelector('.load-input').value || 0) * parseFloat(row.querySelector('.price-input').value || 0));
+                const load = parseInt(row.querySelector('.load-input').value || 0);
+                const price = parseFloat(row.querySelector('.price-input').value || 0);
+                grandTotal += (load * price); totalLoads += load;
             });
             document.getElementById('live-total').innerText = `₱${grandTotal.toLocaleString()}`;
-            return { grandTotal };
+            return { grandTotal, totalLoads };
         }
 
-        function renderAll() {
-            // Dashboard Logic
-            document.getElementById('progress-count').innerText = transactions.filter(t => t.status === 'progress').length;
-            document.getElementById('ready-count').innerText = transactions.filter(t => t.status === 'ready').length;
-            
-            // Transaction List
+        function refreshAllUI() {
+            localStorage.setItem('bubbleDashData', JSON.stringify(appData));
+            updateDashboardUI(); renderTransactions();
+        }
+
+        function updateDashboardUI() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayTotal = appData.transactions.filter(t => t.rawDate === todayStr && t.timing === 'now').reduce((acc, t) => acc + t.amt, 0);
+            document.getElementById('today-rev-dash').innerText = `₱${todayTotal.toLocaleString()}`;
+            document.getElementById('progress-count').innerText = appData.transactions.filter(t => t.status === 'progress').length;
+            document.getElementById('ready-count').innerText = appData.transactions.filter(t => t.status === 'ready').length;
+        }
+
+        function renderTransactions() {
             const list = document.getElementById('transaction-list');
-            list.innerHTML = transactions.map(t => `
+            list.innerHTML = appData.transactions.map(t => `
                 <tr class="border-b text-xs">
-                    <td class="py-4">${new Date(t.created_at).toLocaleString()}</td>
-                    <td><strong>${t.customer_name}</strong><br><small>${t.service}</small></td>
-                    <td>${t.timing === 'now' ? 'Paid' : 'Unpaid'}</td>
+                    <td class="py-4 font-bold text-blue-600">${t.time}</td>
+                    <td><span class="order-id-pill">ID-${t.id}</span><br><strong>${t.name}</strong><br><small>${t.services[0]}</small></td>
+                    <td>${t.timing === 'now' ? 'PAID' : 'COLLECT'}</td>
                     <td><span class="status-pill ${t.status === 'progress' ? 'bg-progress' : 'bg-ready'}">${t.status}</span></td>
-                    <td class="font-bold">₱${t.total_price}</td>
+                    <td class="font-black">₱${t.amt.toLocaleString()}</td>
                     <td><button onclick="deleteSale(${t.id})" class="text-red-400">Void</button></td>
-                </tr>
-            `).join('');
+                </tr>`).join('');
         }
 
         async function deleteSale(id) {
-            if(confirm("Void?")) { await supabase.from('sales').delete().eq('id', id); syncData(); }
+            if(confirm("Void Order?")) {
+                await supabase.from('sales').delete().eq('id', id);
+                syncFromCloud();
+            }
         }
 
         function showTab(t) {
@@ -183,11 +308,18 @@
         function addServiceRow() {
             const div = document.createElement('div');
             div.className = "service-row grid grid-cols-12 gap-2 items-end pt-2";
-            div.innerHTML = `<div class="col-span-4"><select class="service-select"><option>Light Clothes (8kg max)</option><option>Mixed Clothes (7kg max)</option></select></div><div class="col-span-3"><input type="number" class="clothes-input" value="0"></div><div class="col-span-2"><input type="number" class="price-input" value="175" oninput="calculateTotal()"></div><div class="col-span-2"><input type="number" class="load-input" value="1" oninput="calculateTotal()"></div>`;
+            div.innerHTML = `<div class="col-span-4"><select class="service-select font-medium text-slate-700"><option>Light Clothes (8kg max)</option><option>Mixed Clothes (7kg max)</option><option>Table Cloth/Seat Covers (6kg max)</option><option>Bedsheet/Blanket/Towel (6kg max)</option></select></div><div class="col-span-3"><input type="number" class="clothes-input font-bold" value="0"></div><div class="col-span-2"><input type="number" class="price-input font-bold" value="175" oninput="calculateTotal()"></div><div class="col-span-2"><input type="number" class="load-input font-bold" value="1" oninput="calculateTotal()"></div><div class="col-span-1"><button onclick="this.parentElement.parentElement.remove(); calculateTotal()" class="text-red-400">×</button></div>`;
             document.getElementById('services-container').appendChild(div);
         }
 
-        window.onload = syncData;
+        function resetOrderForm() {
+            document.getElementById('order-name').value = ''; document.getElementById('order-contact').value = '';
+        }
+
+        window.onload = () => {
+            syncFromCloud();
+            setInterval(syncFromCloud, 30000); // Auto-sync every 30 seconds
+        };
     </script>
 </body>
 </html>
